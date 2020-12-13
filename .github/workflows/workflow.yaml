@@ -19,9 +19,15 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: asdf plugin test
-        uses: asdf-vm/actions/plugin-test@v1.0.0
-        env:
-          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          command: vegeta -version
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: install asdf-vm
+        run: git clone https://github.com/asdf-vm/asdf.git $HOME/asdf
+
+      - name: install gosec and run test
+        run: . $HOME/asdf/asdf.sh
+          asdf plugin add gosec $GITHUB_WORKSPACE
+          asdf list all gosec
+          asdf install gosec latest
+          vegeta -version
