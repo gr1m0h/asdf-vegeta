@@ -5,17 +5,37 @@ set -e
 [ -n "$ASDF_INSTALL_VERSION" ] || (echo 'Missing ASDF_INSTALL_VERSION' >&2 && exit 1)
 [ -n "$ASDF_DOWNLOAD_PATH" ] || (echo 'Missing ASDF_DOWNLOAD_PATH' >&2 && exit 1)
 
+# get archictecture for download
+case "$(uname -m)" in
+	"aarch64")
+		ARCH="arm64"
+		;;
+	"arm64")
+		ARCH="arm64"
+		;;
+	"x86_64")
+		ARCH="amd64"
+		;;
+	"i386")
+		ARCH="386"
+		;;
+	*)
+		echo "Unknown architecture: $(uname -m)" >&2
+		exit 1
+		;;
+esac
+
 case "$(uname -s)" in
 	"Darwin")
 		URLS=(
-			"https://github.com/tsenart/vegeta/releases/download/v${ASDF_INSTALL_VERSION}/vegeta-${ASDF_INSTALL_VERSION}-darwin-amd64.tar.gz"
-			"https://github.com/tsenart/vegeta/releases/download/v${ASDF_INSTALL_VERSION}/vegeta_${ASDF_INSTALL_VERSION}_darwin_amd64.tar.gz"
+			"https://github.com/tsenart/vegeta/releases/download/v${ASDF_INSTALL_VERSION}/vegeta-${ASDF_INSTALL_VERSION}-darwin-${ARCH}.tar.gz"
+			"https://github.com/tsenart/vegeta/releases/download/v${ASDF_INSTALL_VERSION}/vegeta_${ASDF_INSTALL_VERSION}_darwin_${ARCH}.tar.gz"
 		)
 		;;
 	"Linux")
 		URLS=(
-			"https://github.com/tsenart/vegeta/releases/download/v${ASDF_INSTALL_VERSION}/vegeta-${ASDF_INSTALL_VERSION}-linux-amd64.tar.gz"
-			"https://github.com/tsenart/vegeta/releases/download/v${ASDF_INSTALL_VERSION}/vegeta_${ASDF_INSTALL_VERSION}_linux_amd64.tar.gz"
+			"https://github.com/tsenart/vegeta/releases/download/v${ASDF_INSTALL_VERSION}/vegeta-${ASDF_INSTALL_VERSION}-linux-${ARCH}.tar.gz"
+			"https://github.com/tsenart/vegeta/releases/download/v${ASDF_INSTALL_VERSION}/vegeta_${ASDF_INSTALL_VERSION}_linux_${ARCH}.tar.gz"
 		)
 		;;
 esac
