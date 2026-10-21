@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
+
+# Versions form part of an upstream URL; reject paths, queries and shell input.
+if [[ ! ${ASDF_INSTALL_VERSION:-} =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "Invalid ASDF_INSTALL_VERSION" >&2
+  exit 1
+fi
 
 # check ASDF environment variables
 [ -n "$ASDF_INSTALL_VERSION" ] || (echo 'Missing ASDF_INSTALL_VERSION' >&2 && exit 1)
@@ -40,7 +46,36 @@ case "$(uname -s)" in
 	;;
 esac
 
+downloaded=false
 for URL in "${URLS[@]}"; do
 	echo "Trying to download tarball from ${URL}" >&2
-	{ curl -fL -o "${ASDF_DOWNLOAD_PATH}/vegeta.tar.gz" "$URL" && break; } || echo "Trying next URL" >&2
+	{ curl --proto "=https" --proto-redir "=https" --tlsv1.2 -fL -o "${ASDF_DOWNLOAD_PATH}/vegeta.tar.gz" "$URL" && downloaded=true && break; } || echo "Trying next URL" >&2
 done
+
+if [ "$downloaded" != true ]; then
+  echo "All download URLs failed" >&2
+  exit 1
+fi
+
+# Verify the exact asset, never an arbitrary entry from the checksum manifest.
+checksum_file=$(mktemp)
+trap 'rm -f "$checksum_file"' EXIT
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL "https://github.com/tsenart/vegeta/releases/download/v${ASDF_INSTALL_VERSION}/vegeta_${ASDF_INSTALL_VERSION}_checksums.txt" -o "$checksum_file"
+asset_url="${URL}"
+asset_name=${asset_url##*/}
+expected=$(awk -v name="$asset_name" '$2 == name || $2 == "*" name {print $1}' "$checksum_file")
+if [[ ! $expected =~ ^[[:xdigit:]]{64}$ ]]; then
+  echo "Missing or invalid SHA-256 for $asset_name" >&2
+  exit 1
+fi
+if command -v sha256sum >/dev/null 2>&1; then
+  actual=$(sha256sum "${ASDF_DOWNLOAD_PATH}/vegeta.tar.gz")
+else
+  actual=$(shasum -a 256 "${ASDF_DOWNLOAD_PATH}/vegeta.tar.gz")
+fi
+actual=${actual%% *}
+if [ "$actual" != "$expected" ]; then
+  rm -f "${ASDF_DOWNLOAD_PATH}/vegeta.tar.gz"
+  echo "SHA-256 mismatch for $asset_name" >&2
+  exit 1
+fi
